@@ -1,0 +1,21 @@
+# PostgreSQL configuration file
+
+data_directory = '/var/lib/postgresql/15/main'
+hba_file = '/etc/postgresql/15/main/pg_hba.conf'
+ident_file = '/etc/postgresql/15/main/pg_ident.conf'
+
+listen_addresses = 'localhost, {{ listen_addresses }}'
+port = 5432
+
+max_connections = 100
+shared_buffers = 128MB
+effective_cache_size = 4GB
+work_mem = 32MB
+maintenance_work_mem = 256MB
+wal_level = replica
+synchronous_commit = on
+archive_mode = on
+archive_command = 'rsync -a %p /var/lib/pgsql/archive/%f'
+max_wal_senders = 3
+wal_keep_segments = 32
+hot_standby = on

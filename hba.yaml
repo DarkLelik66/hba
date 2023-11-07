@@ -1,0 +1,70 @@
+---
+- name: Установка и настройка кластера PostgreSQL
+  hosts: postgresql_servers
+  become: yes
+  tasks:
+    - name: Установка PostgreSQL
+      apt:
+        name: postgresql
+        state: present
+
+    - name: Установка PGPool-II
+      apt:
+        name: pgpool2
+        state: present
+
+    - name: Установка rsync
+      apt:
+        name: rsync
+        state: present
+
+    - name: Проверка состояния PostgreSQL
+      systemd:
+        name: postgresql
+        state: started
+      ignore_errors: yes
+      register: postgresql_status
+
+    - name: Остановка PostgreSQL
+      systemd:
+        name: postgresql
+        state: stopped
+      when: postgresql_status is succeeded
+
+    - name: Копирование конфигурационных файлов
+      template:
+        src: templates/pg_hba.conf.j2
+        dest: /etc/postgresql/15/main/pg_hba.conf
+      notify:
+        - Restart PostgreSQL
+
+    - name: Конфигурация PostgreSQL
+      template:
+        src: templates/postgresql.conf.j2
+        dest: /etc/postgresql/15/main/postgresql.conf
+      notify:
+        - Restart PostgreSQL
+
+    - name: Настройка репликации
+      command: |
+        pg_basebackup -h {{ replication_address }} -D /var/lib/postgresql/15/main -U replication -vP --wal-method=fetch
+      when: inventory_hostname != replication_address
+      notify:
+        - Start PostgreSQL
+
+    - name: Запуск PostgreSQL после настройки репликации
+      systemd:
+        name: postgresql
+        state: started
+      when: inventory_hostname != replication_address
+
+  handlers:
+    - name: Restart PostgreSQL
+      systemd:
+        name: postgresql
+        state: restarted
+
+    - name: Start PostgreSQL
+      systemd:
+        name: postgresql
+        state: started
